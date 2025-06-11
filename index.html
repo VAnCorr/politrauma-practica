@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <base target="_top"> <!-- Necesario para Google Apps Script -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rúbrica de Evaluación - El Paciente Politraumatizado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            body { font-size: 12px; }
+            .page-break { page-break-after: always; }
+        }
+        .print-only { display: none; }
+        
+        /* Header profesional con fondo claro */
+        .rubric-header {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #e5e7eb;
+        }
+        
+        .rubric-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
+        }
+        
+        /* Tarjetas de criterios mejoradas */
+        .criterion-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .criterion-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 5px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            transform: scaleY(0);
+            transition: transform 0.3s ease;
+        }
+        
+        .criterion-card:hover {
+            border-color: #3b82f6;
+            box-shadow: 0 8px 30px rgba(59, 130, 246, 0.15);
+            transform: translateY(-2px);
+        }
+        
+        .criterion-card:hover::before {
+            transform: scaleY(1);
+        }
+        
+        /* Input de puntuación mejorado */
+        .score-input {
+            background: #ffffff;
+            border: 2px solid #e5e7eb;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .score-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            transform: scale(1.05);
+        }
+        
+        /* Nota final espectacular con fondo claro */
+        .final-score {
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+            border: 3px solid #3b82f6;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .final-score::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+        }
+        
+        .final-score-content {
+            position: relative;
+            z-index: 1;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Botones profesionales */
+        .btn {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* Colores de calificación */
+        .score-excellent {
+            background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important;
+            border-color: #16a34a !important;
+        }
+        
+        .score-good {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+            border-color: #d97706 !important;
+        }
+        
+        .score-poor {
+            background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%) !important;
+            border-color: #dc2626 !important;
+        }
+        
+        /* Animaciones suaves */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .criterion-card {
+            animation: fadeInUp 0.6s ease-out;
+        }
+        
+        .criterion-card:nth-child(1) { animation-delay: 0.1s; }
+        .criterion-card:nth-child(2) { animation-delay: 0.2s; }
+        .criterion-card:nth-child(3) { animation-delay: 0.3s; }
+        .criterion-card:nth-child(4) { animation-delay: 0.4s; }
+        .criterion-card:nth-child(5) { animation-delay: 0.5s; }
+        .criterion-card:nth-child(6) { animation-delay: 0.6s; }
+        .criterion-card:nth-child(7) { animation-delay: 0.7s; }
+
+        /* Modal mejorado (no usado, pero se mantiene la estructura por si acaso) */
+        .modal-overlay {
+            backdrop-filter: blur(8px);
+        }
+
+        /* Mensajes de estado */
+        .status-message {
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0.5rem;
+            font-weight: 500;
+            text-align: center;
+        }
+        .status-success {
+            background-color: #dcfce7;
+            color: #16a34a;
+            border: 1px solid #22c55e;
+        }
+        .status-error {
+            background-color: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #ef4444;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-6 max-w-4xl">
+        <!-- Header -->
+        <div class="rubric-header text-gray-800 p-6 rounded-t-lg shadow-lg">
+            <div class="final-score-content">
+                <h1 class="text-2xl md:text-3xl font-bold text-center mb-2 text-gray-900">
+                    Rúbrica de Evaluación Práctica
+                </h1>
+                <h2 class="text-lg md:text-xl text-center mb-4 text-gray-700">
+                    Curso: "El Paciente Politraumatizado"
+                </h2>
+            </div>
+        </div>
+
+        <!-- Información General y Criterios -->
+        <div class="bg-white p-6 rounded-b-lg shadow-lg">
+            <!-- Información General -->
+            <div class="bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-lg mb-6 border border-gray-200">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="fecha" class="block text-sm font-medium text-gray-700 mb-2">
+                            Fecha de Evaluación
+                        </label>
+                        <input type="date" id="fecha" 
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all">
+                    </div>
+                    <div>
+                        <label for="residente" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nombre del Residente
+                        </label>
+                        <input type="text" id="residente" placeholder="Nombre completo"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all">
+                    </div>
+                    <div>
+                        <label for="evaluador" class="block text-sm font-medium text-gray-700 mb-2">
+                            Nombre del Evaluador
+                        </label>
+                        <input type="text" id="evaluador" placeholder="Nombre completo"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Criterios de Evaluación -->
+            <div class="space-y-4" id="criterios">
+                <!-- Criterio 1 -->
+                <div class="criterion-card p-6 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 md:mb-0" data-criterio-nombre="1. Organización del equipo">
+                            1. Organización del equipo
+                        </h3>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium border border-blue-200">
+                            Peso: 10%
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
+                        <input type="number" min="0" max="100" step="1" 
+                               class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
+                               data-peso="10" onchange="calcularNota()">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+
+                <!-- Criterio 2 -->
+                <div class="criterion-card p-6 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 md:mb-0" data-criterio-nombre="2. Control de la vía aérea con protección cervical">
+                            2. Control de la vía aérea con protección cervical
+                        </h3>
+                        <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium border border-red-200">
+                            Peso: 20%
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
+                        <input type="number" min="0" max="100" step="1" 
+                               class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
+                               data-peso="20" onchange="calcularNota()">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+
+                <!-- Criterio 3 -->
+                <div class="criterion-card p-6 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 md:mb-0" data-criterio-nombre="3. Ventilación y oxigenación">
+                            3. Ventilación y oxigenación
+                        </h3>
+                        <span class="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-sm font-medium border border-yellow-200">
+                            Peso: 15%
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
+                        <input type="number" min="0" max="100" step="1" 
+                               class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
+                               data-peso="15" onchange="calcularNota()">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+
+                <!-- Criterio 4 -->
+                <div class="criterion-card p-6 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 md:mb-0" data-criterio-nombre="4. Circulación y control de hemorragias">
+                            4. Circulación y control de hemorragias
+                        </h3>
+                        <span class="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium border border-red-200">
+                            Peso: 25%
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
+                        <input type="number" min="0" max="100" step="1" 
+                               class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
+                               data-peso="25" onchange="calcularNota()">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+
+                <!-- Criterio 5 -->
+                <div class="criterion-card p-6 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 md:mb-0" data-criterio-nombre="5. Evaluación neurológica">
+                            5. Evaluación neurológica
+                        </h3>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium border border-blue-200">
+                            Peso: 10%
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
+                        <input type="number" min="0" max="100" step="1" 
+                               class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
+                               data-peso="10" onchange="calcularNota()">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+
+                <!-- Criterio 6 -->
+                <div class="criterion-card p-6 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 md:mb-0" data-criterio-nombre="6. Exposición y prevención de hipotermia">
+                            6. Exposición y prevención de hipotermia
+                        </h3>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium border border-blue-200">
+                            Peso: 10%
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
+                        <input type="number" min="0" max="100" step="1" 
+                               class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
+                               data-peso="10" onchange="calcularNota()">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+
+                <!-- Criterio 7 -->
+                <div class="criterion-card p-6 rounded-lg">
+                    <div class="flex flex-col md:flex-row md:items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-2 md:mb-0" data-criterio-nombre="7. Valoración secundaria y plan definitivo">
+                            7. Valoración secundaria y plan definitivo
+                        </h3>
+                        <span class="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium border border-blue-200">
+                            Peso: 10%
+                        </span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
+                        <input type="number" min="0" max="100" step="1" 
+                               class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
+                               data-peso="10" onchange="calcularNota()">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nota Final -->
+            <div class="final-score text-gray-800 p-8 rounded-lg mt-6 text-center shadow-lg">
+                <div class="final-score-content">
+                    <h3 class="text-2xl font-bold mb-4 text-gray-900">Calificación Final</h3>
+                    <div class="text-5xl font-black text-blue-600 mb-2 drop-shadow-lg" id="notaFinal">0.0%</div>
+                    <p class="text-sm text-gray-600">Promedio ponderado según criterios</p>
+                    <div class="mt-4 text-sm">
+                        <span id="estadoCalificacion" class="px-4 py-2 rounded-full bg-gray-200 text-gray-700 font-medium">
+                            Pendiente de evaluación
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Comentarios -->
+            <div class="mt-8 bg-gradient-to-br from-gray-50 to-gray-100 p-6 rounded-lg border border-gray-200">
+                <label for="comentarios" class="block text-sm font-medium text-gray-700 mb-2">
+                    Comentarios y Observaciones
+                </label>
+                <textarea id="comentarios" rows="4" 
+                          placeholder="Observaciones adicionales, puntos fuertes, áreas de mejora..."
+                          class="w-full px-4 py-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all resize-vertical"></textarea>
+            </div>
+
+            <!-- Mensaje de estado (éxito/error) -->
+            <div id="statusMessage" class="status-message hidden mt-4"></div>
+
+            <!-- Botones de Acción -->
+            <div class="flex flex-col sm:flex-row gap-4 mt-8 no-print">
+                <button onclick="exportarPDF()" 
+                        class="btn flex-1 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center shadow-lg">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Exportar a PDF (Local)
+                </button>
+                
+                <button id="btnGuardar" onclick="guardarTodo()" 
+                        class="btn flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center shadow-lg">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Guardar en Google Sheets & Drive
+                </button>
+                
+                <button onclick="limpiarFormulario()" 
+                        class="btn flex-1 bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center shadow-lg">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    Limpiar Formulario
+                </button>
+            </div>
+        </div>
+
+        <!-- Footer para impresión -->
+        <div class="print-only mt-8 pt-4 border-t border-gray-300 text-center text-sm text-gray-600">
+            <p>Rúbrica de Evaluación - "El Paciente Politraumatizado"</p>
+        </div>
+    </div>
+
+    <script>
+        // Función corregida para calcular la nota final
+        function calcularNota() {
+            const inputs = document.querySelectorAll('.score-input');
+            let sumaTotal = 0;
+            let camposCompletos = 0;
+            
+            inputs.forEach(input => {
+                const valor = parseFloat(input.value);
+                const peso = parseFloat(input.dataset.peso);
+                
+                if (!isNaN(valor) && valor >= 0) {
+                    sumaTotal += (valor * peso / 100); 
+                    camposCompletos++;
+                }
+            });
+            
+            let notaFinal = 0;
+            if (camposCompletos > 0) {
+                notaFinal = sumaTotal; 
+            }
+            
+            document.getElementById('notaFinal').textContent = notaFinal.toFixed(1) + '%';
+            
+            const finalScoreElement = document.querySelector('.final-score');
+            const estadoElement = document.getElementById('estadoCalificacion');
+            
+            finalScoreElement.classList.remove('score-excellent', 'score-good', 'score-poor');
+            
+            if (camposCompletos === 0) {
+                estadoElement.textContent = 'Pendiente de evaluación';
+                estadoElement.className = 'px-4 py-2 rounded-full bg-gray-200 text-gray-700 font-medium';
+            } else if (notaFinal >= 80) {
+                finalScoreElement.classList.add('score-excellent');
+                estadoElement.textContent = 'Excelente desempeño';
+                estadoElement.className = 'px-4 py-2 rounded-full bg-green-600 text-white font-medium';
+            } else if (notaFinal >= 70) {
+                finalScoreElement.classList.add('score-good');
+                estadoElement.textContent = 'Buen desempeño';
+                estadoElement.className = 'px-4 py-2 rounded-full bg-yellow-600 text-white font-medium';
+            } else if (notaFinal >= 60) {
+                finalScoreElement.classList.add('score-good');
+                estadoElement.textContent = 'Desempeño aceptable';
+                estadoElement.className = 'px-4 py-2 rounded-full bg-orange-600 text-white font-medium';
+            } else {
+                finalScoreElement.classList.add('score-poor');
+                estadoElement.textContent = 'Requiere mejora';
+                estadoElement.className = 'px-4 py-2 rounded-full bg-red-600 text-white font-medium';
+            }
+        }
+
+        // Función para exportar a PDF (localmente)
+        function exportarPDF() {
+            const fecha = document.getElementById('fecha').value;
+            const residente = document.getElementById('residente').value;
+            
+            if (!fecha || !residente) {
+                alert('Por favor, completa la fecha y el nombre del residente antes de exportar.');
+                return;
+            }
+            
+            window.print();
+        }
+
+        // Función para limpiar el formulario
+        function limpiarFormulario() {
+            if (confirm('¿Estás seguro de que deseas limpiar todos los datos del formulario?')) {
+                document.querySelectorAll('input, textarea').forEach(element => {
+                    if (element.type !== 'date' || element.id !== 'fecha') {
+                        element.value = '';
+                    }
+                });
+                calcularNota();
+                mostrarMensaje(''); // Limpiar cualquier mensaje de estado
+            }
+        }
+
+        // --- Funciones para Google Apps Script ---
+
+        // Función para mostrar mensajes de estado
+        function mostrarMensaje(mensaje, tipo = 'success') {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = mensaje;
+            statusMessage.classList.remove('hidden', 'status-success', 'status-error');
+            if (tipo === 'success') {
+                statusMessage.classList.add('status-success');
+            } else if (tipo === 'error') {
+                statusMessage.classList.add('status-error');
+            }
+            // Ocultar mensaje después de 5 segundos
+            setTimeout(() => statusMessage.classList.add('hidden'), 5000);
+        }
+
+        // Función para deshabilitar/habilitar botones
+        function toggleButtons(disabled) {
+            document.getElementById('btnGuardar').disabled = disabled;
+            // Podrías añadir más botones si lo deseas
+        }
+
+        // Función principal para guardar datos y PDF
+        function guardarTodo() {
+            toggleButtons(true); // Deshabilitar botones durante la carga
+            mostrarMensaje('Guardando datos y generando PDF...', 'info');
+
+            const fecha = document.getElementById('fecha').value;
+            const residente = document.getElementById('residente').value;
+            const evaluador = document.getElementById('evaluador').value;
+
+            if (!fecha || !residente || !evaluador) {
+                mostrarMensaje('Por favor, completa la fecha, el nombre del residente y el evaluador.', 'error');
+                toggleButtons(false);
+                return;
+            }
+
+            const criteriosData = [];
+            document.querySelectorAll('.criterion-card').forEach(card => {
+                const nombreCriterio = card.querySelector('h3').dataset.criterioNombre;
+                const puntuacionInput = card.querySelector('.score-input');
+                const puntuacion = puntuacionInput ? parseFloat(puntuacionInput.value) : 0;
+                const peso = puntuacionInput ? parseFloat(puntuacionInput.dataset.peso) : 0;
+
+                criteriosData.push({
+                    nombre: nombreCriterio,
+                    puntuacion: isNaN(puntuacion) ? '' : puntuacion,
+                    peso: isNaN(peso) ? '' : peso
+                });
+            });
+
+            const datos = {
+                fecha: fecha,
+                residente: residente,
+                evaluador: evaluador,
+                criterios: criteriosData,
+                notaFinal: document.getElementById('notaFinal').textContent,
+                estadoCalificacion: document.getElementById('estadoCalificacion').textContent,
+                comentarios: document.getElementById('comentarios').value,
+                timestamp: new Date().toLocaleString('es-ES', { timeZone: 'America/Bogota' }) // Ajusta a tu zona horaria
+            };
+
+            // Llamada a Google Apps Script
+            google.script.run
+                .withSuccessHandler(function(response) {
+                    mostrarMensaje(response.message, 'success');
+                    limpiarFormulario(); // Limpiar el formulario después de guardar
+                    toggleButtons(false); // Habilitar botones
+                })
+                .withFailureHandler(function(error) {
+                    mostrarMensaje('Error al guardar: ' + error.message, 'error');
+                    toggleButtons(false); // Habilitar botones
+                })
+                .processForm(datos); // Esta función será llamada en Code.gs
+        }
+
+        // Inicializar la fecha con la fecha actual al cargar
+        window.addEventListener('load', () => {
+            const today = new Date();
+            const yyyy = today.getFullYear();
+            const mm = String(today.getMonth() + 1).padStart(2, '0'); // Enero es 0!
+            const dd = String(today.getDate()).padStart(2, '0');
+            document.getElementById('fecha').value = `${yyyy}-${mm}-${dd}`;
+            calcularNota(); // Calcular nota inicial si hay valores por defecto o al cargar
+        });
+    </script>
+</body>
+</html>
