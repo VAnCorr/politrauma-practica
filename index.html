@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <base target="_top"> <!-- Esencial para el funcionamiento con Google Apps Script -->
+    <base target="_top">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rúbrica de Evaluación - El Paciente Politraumatizado</title>
@@ -21,7 +21,6 @@
         }
         .print-only { display: none; }
         
-        /* Header profesional con fondo claro */
         .rubric-header {
             background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
             position: relative;
@@ -39,7 +38,6 @@
             background: linear-gradient(90deg, #3b82f6 0%, #1d4ed8 100%);
         }
         
-        /* Tarjetas de criterios mejoradas */
         .criterion-card {
             background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
             border: 2px solid #e5e7eb;
@@ -70,7 +68,6 @@
             transform: scaleY(1);
         }
         
-        /* Input de puntuación mejorado */
         .score-input {
             background: #ffffff;
             border: 2px solid #e5e7eb;
@@ -84,7 +81,11 @@
             transform: scale(1.05);
         }
         
-        /* Nota final espectacular con fondo claro */
+        .score-input.invalid {
+            border-color: #ef4444;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+        }
+        
         .final-score {
             background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
             border: 3px solid #3b82f6;
@@ -113,7 +114,6 @@
             to { transform: rotate(360deg); }
         }
         
-        /* Botones profesionales */
         .btn {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
@@ -135,11 +135,15 @@
             left: 100%;
         }
         
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
         }
         
-        /* Colores de calificación */
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
         .score-excellent {
             background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%) !important;
             border-color: #16a34a !important;
@@ -150,12 +154,16 @@
             border-color: #d97706 !important;
         }
         
+        .score-fair {
+            background: linear-gradient(135deg, #fed7aa 0%, #fdba74 100%) !important;
+            border-color: #ea580c !important;
+        }
+        
         .score-poor {
             background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%) !important;
             border-color: #dc2626 !important;
         }
         
-        /* Animaciones suaves */
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -179,13 +187,13 @@
         .criterion-card:nth-child(6) { animation-delay: 0.6s; }
         .criterion-card:nth-child(7) { animation-delay: 0.7s; }
 
-        /* Mensajes de estado */
         .status-message {
             padding: 1rem;
             margin-top: 1rem;
             border-radius: 0.5rem;
             font-weight: 500;
             text-align: center;
+            transition: all 0.3s ease;
         }
         .status-success {
             background-color: #dcfce7;
@@ -201,6 +209,21 @@
             background-color: #e0f2fe;
             color: #0c4a6e;
             border: 1px solid #38bdf8;
+        }
+        
+        .progress-indicator {
+            background: #e5e7eb;
+            height: 6px;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+        
+        .progress-bar {
+            background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 3px;
         }
     </style>
 </head>
@@ -225,24 +248,35 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label for="fecha" class="block text-sm font-medium text-gray-700 mb-2">
-                            Fecha de Evaluación
+                            Fecha de Evaluación *
                         </label>
-                        <input type="date" id="fecha" 
+                        <input type="date" id="fecha" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all">
                     </div>
                     <div>
                         <label for="residente" class="block text-sm font-medium text-gray-700 mb-2">
-                            Nombre del Residente
+                            Nombre del Residente *
                         </label>
-                        <input type="text" id="residente" placeholder="Nombre completo"
+                        <input type="text" id="residente" placeholder="Nombre completo" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all">
                     </div>
                     <div>
                         <label for="evaluador" class="block text-sm font-medium text-gray-700 mb-2">
-                            Nombre del Evaluador
+                            Nombre del Evaluador *
                         </label>
-                        <input type="text" id="evaluador" placeholder="Nombre completo"
+                        <input type="text" id="evaluador" placeholder="Nombre completo" required
                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-400 focus:border-blue-400 transition-all">
+                    </div>
+                </div>
+                
+                <!-- Indicador de progreso -->
+                <div class="mt-4">
+                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Progreso de evaluación</span>
+                        <span id="progressText">0/7 criterios completados</span>
+                    </div>
+                    <div class="progress-indicator">
+                        <div class="progress-bar" id="progressBar" style="width: 0%"></div>
                     </div>
                 </div>
             </div>
@@ -263,7 +297,7 @@
                         <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
                         <input type="number" min="0" max="100" step="1" 
                                class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
-                               data-peso="10" onchange="calcularNota()">
+                               data-peso="10" onchange="calcularNota()" oninput="validarInput(this)">
                         <span class="text-sm text-gray-500">%</span>
                     </div>
                 </div>
@@ -282,7 +316,7 @@
                         <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
                         <input type="number" min="0" max="100" step="1" 
                                class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
-                               data-peso="20" onchange="calcularNota()">
+                               data-peso="20" onchange="calcularNota()" oninput="validarInput(this)">
                         <span class="text-sm text-gray-500">%</span>
                     </div>
                 </div>
@@ -301,7 +335,7 @@
                         <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
                         <input type="number" min="0" max="100" step="1" 
                                class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
-                               data-peso="15" onchange="calcularNota()">
+                               data-peso="15" onchange="calcularNota()" oninput="validarInput(this)">
                         <span class="text-sm text-gray-500">%</span>
                     </div>
                 </div>
@@ -320,7 +354,7 @@
                         <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
                         <input type="number" min="0" max="100" step="1" 
                                class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
-                               data-peso="25" onchange="calcularNota()">
+                               data-peso="25" onchange="calcularNota()" oninput="validarInput(this)">
                         <span class="text-sm text-gray-500">%</span>
                     </div>
                 </div>
@@ -339,7 +373,7 @@
                         <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
                         <input type="number" min="0" max="100" step="1" 
                                class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
-                               data-peso="10" onchange="calcularNota()">
+                               data-peso="10" onchange="calcularNota()" oninput="validarInput(this)">
                         <span class="text-sm text-gray-500">%</span>
                     </div>
                 </div>
@@ -358,7 +392,7 @@
                         <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
                         <input type="number" min="0" max="100" step="1" 
                                class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
-                               data-peso="10" onchange="calcularNota()">
+                               data-peso="10" onchange="calcularNota()" oninput="validarInput(this)">
                         <span class="text-sm text-gray-500">%</span>
                     </div>
                 </div>
@@ -377,7 +411,7 @@
                         <label class="text-sm text-gray-600 font-medium">Puntuación (0-100%):</label>
                         <input type="number" min="0" max="100" step="1" 
                                class="score-input w-20 px-3 py-2 rounded-md text-center font-bold"
-                               data-peso="10" onchange="calcularNota()">
+                               data-peso="10" onchange="calcularNota()" oninput="validarInput(this)">
                         <span class="text-sm text-gray-500">%</span>
                     </div>
                 </div>
@@ -445,47 +479,111 @@
     </div>
 
     <script>
-        // Función corregida para calcular la nota final
+        // Función para validar inputs en tiempo real
+        function validarInput(input) {
+            const valor = parseFloat(input.value);
+            
+            // Remover clases de validación previas
+            input.classList.remove('invalid');
+            
+            // Validar rango
+            if (input.value !== '' && (isNaN(valor) || valor < 0 || valor > 100)) {
+                input.classList.add('invalid');
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Función mejorada para calcular la nota final
         function calcularNota() {
             const inputs = document.querySelectorAll('.score-input');
             let sumaTotal = 0;
             let camposCompletos = 0;
+            let camposValidos = 0;
             
             inputs.forEach(input => {
                 const valor = parseFloat(input.value);
                 const peso = parseFloat(input.dataset.peso);
                 
-                if (!isNaN(valor) && valor >= 0) {
-                    sumaTotal += (valor * peso / 100); 
+                if (input.value !== '') {
                     camposCompletos++;
+                    
+                    if (!isNaN(valor) && valor >= 0 && valor <= 100) {
+                        sumaTotal += (valor * peso / 100);
+                        camposValidos++;
+                    }
                 }
             });
             
+            // Actualizar progreso
+            actualizarProgreso(camposValidos, inputs.length);
+            
             let notaFinal = 0;
-            if (camposCompletos > 0) {
-                notaFinal = sumaTotal; 
+            if (camposValidos > 0) {
+                // Solo calcular si todos los campos completados son válidos
+                if (camposCompletos === camposValidos) {
+                    notaFinal = sumaTotal;
+                } else {
+                    // Si hay campos inválidos, mostrar error
+                    document.getElementById('notaFinal').textContent = 'Error';
+                    actualizarEstadoCalificacion('Error en datos', camposValidos, inputs.length);
+                    return;
+                }
             }
             
             document.getElementById('notaFinal').textContent = notaFinal.toFixed(1) + '%';
+            actualizarEstadoCalificacion(notaFinal, camposValidos, inputs.length);
+        }
+        
+        // Función para actualizar el progreso
+        function actualizarProgreso(completados, total) {
+            const porcentaje = (completados / total) * 100;
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
             
+            progressBar.style.width = porcentaje + '%';
+            progressText.textContent = `${completados}/${total} criterios completados`;
+        }
+        
+        // Función para actualizar el estado de calificación
+        function actualizarEstadoCalificacion(notaFinal, camposValidos, totalCampos) {
             const finalScoreElement = document.querySelector('.final-score');
             const estadoElement = document.getElementById('estadoCalificacion');
             
-            finalScoreElement.classList.remove('score-excellent', 'score-good', 'score-poor');
+            // Limpiar clases previas
+            finalScoreElement.classList.remove('score-excellent', 'score-good', 'score-fair', 'score-poor');
             
-            if (camposCompletos === 0) {
+            if (typeof notaFinal === 'string' && notaFinal === 'Error en datos') {
+                estadoElement.textContent = 'Error en los datos ingresados';
+                estadoElement.className = 'px-4 py-2 rounded-full bg-red-200 text-red-800 font-medium';
+                return;
+            }
+            
+            if (camposValidos === 0) {
                 estadoElement.textContent = 'Pendiente de evaluación';
                 estadoElement.className = 'px-4 py-2 rounded-full bg-gray-200 text-gray-700 font-medium';
-            } else if (notaFinal >= 80) {
+                return;
+            }
+
+            if (camposValidos < totalCampos) {
+                estadoElement.textContent = 'Evaluación incompleta';
+                estadoElement.className = 'px-4 py-2 rounded-full bg-yellow-200 text-yellow-800 font-medium';
+                return;
+            }
+
+            // --- BLOQUE CORREGIDO ---
+            // Determinar el estado basado en la nota final
+            if (notaFinal >= 90) {
                 finalScoreElement.classList.add('score-excellent');
                 estadoElement.textContent = 'Excelente desempeño';
                 estadoElement.className = 'px-4 py-2 rounded-full bg-green-600 text-white font-medium';
-            } else if (notaFinal >= 70) {
+            } else if (notaFinal >= 80) {
                 finalScoreElement.classList.add('score-good');
                 estadoElement.textContent = 'Buen desempeño';
                 estadoElement.className = 'px-4 py-2 rounded-full bg-yellow-600 text-white font-medium';
-            } else if (notaFinal >= 60) {
-                finalScoreElement.classList.add('score-good');
+            } else if (notaFinal >= 70) {
+                finalScoreElement.classList.add('score-fair');
                 estadoElement.textContent = 'Desempeño aceptable';
                 estadoElement.className = 'px-4 py-2 rounded-full bg-orange-600 text-white font-medium';
             } else {
@@ -526,6 +624,10 @@
         // Función para mostrar mensajes de estado
         function mostrarMensaje(mensaje, tipo = 'success') {
             const statusMessage = document.getElementById('statusMessage');
+            if (!mensaje) {
+                statusMessage.classList.add('hidden');
+                return;
+            }
             statusMessage.textContent = mensaje;
             statusMessage.classList.remove('hidden', 'status-success', 'status-error', 'status-info');
             if (tipo === 'success') {
@@ -541,38 +643,45 @@
 
         // Función para deshabilitar/habilitar botones
         function toggleButtons(disabled) {
-            document.getElementById('btnGuardar').disabled = disabled;
-            // Si tienes otros botones, puedes añadirlos aquí
-            document.querySelector('button[onclick="exportarPDF()"]').disabled = disabled;
-            document.querySelector('button[onclick="limpiarFormulario()"]').disabled = disabled;
+            document.querySelectorAll('.btn').forEach(button => button.disabled = disabled);
         }
 
         // Función principal para guardar datos y PDF
         function guardarTodo() {
-            toggleButtons(true); // Deshabilitar botones durante la carga
-            mostrarMensaje('Guardando datos y generando PDF...', 'info');
-
+            // Validar campos obligatorios
             const fecha = document.getElementById('fecha').value;
             const residente = document.getElementById('residente').value;
             const evaluador = document.getElementById('evaluador').value;
-
             if (!fecha || !residente || !evaluador) {
-                mostrarMensaje('Por favor, completa la fecha, el nombre del residente y el evaluador.', 'error');
-                toggleButtons(false);
+                mostrarMensaje('Por favor, completa los campos de Fecha, Residente y Evaluador.', 'error');
                 return;
             }
+            
+            // Validar que todas las puntuaciones sean correctas
+            let hayErrores = false;
+            document.querySelectorAll('.score-input').forEach(input => {
+                if (!validarInput(input)) {
+                    hayErrores = true;
+                }
+            });
+            if (hayErrores) {
+                mostrarMensaje('Hay errores en las puntuaciones. Por favor, revisa los campos marcados en rojo.', 'error');
+                return;
+            }
+            
+            toggleButtons(true); // Deshabilitar botones durante la carga
+            mostrarMensaje('Guardando datos y generando PDF...', 'info');
 
             const criteriosData = [];
             document.querySelectorAll('.criterion-card').forEach(card => {
-                // Usamos el atributo data-criterio-nombre del h3 para obtener el nombre completo del criterio
                 const nombreCriterio = card.querySelector('h3').dataset.criterioNombre; 
                 const puntuacionInput = card.querySelector('.score-input');
-                const puntuacion = puntuacionInput ? parseFloat(puntuacionInput.value) : 0;
+                const puntuacion = puntuacionInput.value !== '' ? parseFloat(puntuacionInput.value) : '';
                 const peso = puntuacionInput ? parseFloat(puntuacionInput.dataset.peso) : 0;
 
                 criteriosData.push({
                     nombre: nombreCriterio,
-                    puntuacion: isNaN(puntuacion) ? '' : puntuacion,
+                    puntuacion: puntuacion,
                     peso: isNaN(peso) ? '' : peso
                 });
             });
@@ -592,13 +701,11 @@
             google.script.run
                 .withSuccessHandler(function(response) {
                     mostrarMensaje(response.message, 'success');
-                    console.log('Respuesta del servidor:', response); // Para depuración
-                    limpiarFormulario(); // Limpiar el formulario después de guardar
+                    limpiarFormulario(false); // Limpiar sin confirmación
                     toggleButtons(false); // Habilitar botones
                 })
                 .withFailureHandler(function(error) {
                     mostrarMensaje('Error al guardar: ' + error.message, 'error');
-                    console.error('Error del servidor:', error); // Para depuración
                     toggleButtons(false); // Habilitar botones
                 })
                 .processForm(datos); // Esta función será llamada en Code.gs
@@ -611,7 +718,7 @@
             const mm = String(today.getMonth() + 1).padStart(2, '0'); // Enero es 0!
             const dd = String(today.getDate()).padStart(2, '0');
             document.getElementById('fecha').value = `${yyyy}-${mm}-${dd}`;
-            calcularNota(); // Calcular nota inicial si hay valores por defecto o al cargar
+            calcularNota(); 
         });
     </script>
 </body>
